@@ -5,7 +5,7 @@ session_start();
 require_once __DIR__ . '/../db.php';
 
 if (isset($_SESSION['admin_user_id'])) {
-    header('Location: dashboard.php');
+    header('Location: controls.php');
     exit;
 }
 
@@ -32,7 +32,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 session_regenerate_id(true);
                 $_SESSION['admin_user_id'] = (int) $user['id'];
                 $_SESSION['admin_username'] = (string) $user['username'];
-                header('Location: dashboard.php');
+                header('Location: controls.php');
                 exit;
             }
         }

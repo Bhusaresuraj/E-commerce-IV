@@ -4,7 +4,7 @@ declare(strict_types=1);
 session_start();
 
 if (isset($_SESSION['admin_user_id'])) {
-    header('Location: dashboard.php');
+    header('Location: controls.php');
     exit;
 }
 

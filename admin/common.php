@@ -55,9 +55,12 @@ function ensure_admin_tables(mysqli $db): void
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             full_name VARCHAR(150) NOT NULL,
             email VARCHAR(180) NOT NULL UNIQUE,
+            google_id VARCHAR(191) NULL UNIQUE,
             phone VARCHAR(50) DEFAULT '',
+            avatar_url VARCHAR(255) DEFAULT '',
             status ENUM('active','blocked') NOT NULL DEFAULT 'active',
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_login_at TIMESTAMP NULL DEFAULT NULL
         ) ENGINE=InnoDB",
         "CREATE TABLE IF NOT EXISTS products (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -108,6 +111,31 @@ function ensure_admin_tables(mysqli $db): void
     }
     if ($columnCheck instanceof mysqli_result) {
         $columnCheck->free();
+    }
+
+    $userGoogleIdCheck = $db->query("SHOW COLUMNS FROM users LIKE 'google_id'");
+    if ($userGoogleIdCheck instanceof mysqli_result && $userGoogleIdCheck->num_rows === 0) {
+        $db->query("ALTER TABLE users ADD COLUMN google_id VARCHAR(191) NULL AFTER email");
+        $db->query("ALTER TABLE users ADD UNIQUE KEY uniq_google_id (google_id)");
+    }
+    if ($userGoogleIdCheck instanceof mysqli_result) {
+        $userGoogleIdCheck->free();
+    }
+
+    $userAvatarCheck = $db->query("SHOW COLUMNS FROM users LIKE 'avatar_url'");
+    if ($userAvatarCheck instanceof mysqli_result && $userAvatarCheck->num_rows === 0) {
+        $db->query("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(255) DEFAULT '' AFTER phone");
+    }
+    if ($userAvatarCheck instanceof mysqli_result) {
+        $userAvatarCheck->free();
+    }
+
+    $userLastLoginCheck = $db->query("SHOW COLUMNS FROM users LIKE 'last_login_at'");
+    if ($userLastLoginCheck instanceof mysqli_result && $userLastLoginCheck->num_rows === 0) {
+        $db->query("ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP NULL DEFAULT NULL AFTER created_at");
+    }
+    if ($userLastLoginCheck instanceof mysqli_result) {
+        $userLastLoginCheck->free();
     }
 
     $seedCategory = $db->query('SELECT id FROM categories LIMIT 1');

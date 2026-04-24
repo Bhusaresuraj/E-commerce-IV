@@ -157,9 +157,12 @@ CREATE TABLE `users` (
   `id` int(10) UNSIGNED NOT NULL,
   `full_name` varchar(150) NOT NULL,
   `email` varchar(180) NOT NULL,
+  `google_id` varchar(191) DEFAULT NULL,
   `phone` varchar(50) DEFAULT '',
+  `avatar_url` varchar(255) DEFAULT '',
   `status` enum('active','blocked') NOT NULL DEFAULT 'active',
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `last_login_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -217,7 +220,8 @@ ALTER TABLE `products`
 --
 ALTER TABLE `users`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `email` (`email`);
+  ADD UNIQUE KEY `email` (`email`),
+  ADD UNIQUE KEY `uniq_google_id` (`google_id`);
 
 --
 -- AUTO_INCREMENT for dumped tables

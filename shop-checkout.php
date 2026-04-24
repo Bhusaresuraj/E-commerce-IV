@@ -116,7 +116,7 @@ Purchase Premium Metronic Admin Theme: http://themeforest.net/item/metronic-resp
                         <li><a href="shop-account.php">My Account</a></li>
                         <li><a href="shop-wishlist.php">My Wishlist</a></li>
                         <li><a href="shop-checkout.php">Checkout</a></li>
-                        <li><a href="admin/login.php">Log In</a></li>
+                        <li><a href="google-login.php">Log In</a></li>
                     </ul>
                 </div>
                 <!-- END TOP BAR MENU -->
