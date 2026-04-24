@@ -52,7 +52,10 @@ if ($result) {
     <div>
       Logged in as <strong><?php echo h((string) ($_SESSION['admin_username'] ?? 'admin')); ?></strong>
     </div>
-    <a href="logout.php">Logout</a>
+    <div>
+      <a href="controls.php" style="margin-right:8px;">Admin Controls</a>
+      <a href="logout.php">Logout</a>
+    </div>
   </div>
 
   <div class="container">
