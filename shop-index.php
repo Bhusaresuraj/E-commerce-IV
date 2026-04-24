@@ -1,3 +1,25 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__ . '/db.php';
+
+function fe_h(string $value): string
+{
+    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+}
+
+$db = get_db_connection();
+$featuredProducts = [];
+$featuredResult = $db->query("SELECT id, name, image_path, price, stock_qty FROM products WHERE is_active = 1 ORDER BY id DESC LIMIT 8");
+if ($featuredResult === false) {
+    $featuredResult = $db->query("SELECT id, name, '' AS image_path, price, stock_qty FROM products WHERE is_active = 1 ORDER BY id DESC LIMIT 8");
+}
+if ($featuredResult instanceof mysqli_result) {
+    while ($row = $featuredResult->fetch_assoc()) {
+        $featuredProducts[] = $row;
+    }
+    $featuredResult->free();
+}
+?>
 <!DOCTYPE html>
 <!--
 Template: Metronic Frontend Freebie - Responsive HTML Template Based On Twitter Bootstrap 3.3.4
@@ -508,6 +530,32 @@ Purchase Premium Metronic Admin Theme: http://themeforest.net/item/metronic-resp
 
     <div class="main">
       <div class="container">
+        <?php if ($featuredProducts !== []): ?>
+          <div class="row margin-bottom-40">
+            <div class="col-md-12 sale-product">
+              <h2>Products From Admin</h2>
+              <div class="row product-list">
+                <?php foreach ($featuredProducts as $product): ?>
+                  <?php $img = trim((string) ($product['image_path'] ?? '')) !== '' ? (string) $product['image_path'] : 'assets/pages/img/products/model1.jpg'; ?>
+                  <div class="col-md-3 col-sm-6 col-xs-12">
+                    <div class="product-item">
+                      <div class="pi-img-wrapper">
+                        <img src="<?php echo fe_h($img); ?>" class="img-responsive" alt="<?php echo fe_h((string) $product['name']); ?>">
+                        <div>
+                          <a href="<?php echo fe_h($img); ?>" class="btn btn-default fancybox-button">Zoom</a>
+                          <a href="shop-item.php?id=<?php echo (int) $product['id']; ?>" class="btn btn-default">View</a>
+                        </div>
+                      </div>
+                      <h3><a href="shop-item.php?id=<?php echo (int) $product['id']; ?>"><?php echo fe_h((string) $product['name']); ?></a></h3>
+                      <div class="pi-price">$<?php echo number_format((float) $product['price'], 2); ?></div>
+                      <a href="shop-item.php?id=<?php echo (int) $product['id']; ?>" class="btn btn-default">Details</a>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+            </div>
+          </div>
+        <?php endif; ?>
         <!-- BEGIN SALE PRODUCT & NEW ARRIVALS -->
         <div class="row margin-bottom-40">
           <!-- BEGIN SALE PRODUCT -->

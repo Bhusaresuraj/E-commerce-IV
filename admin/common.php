@@ -64,6 +64,7 @@ function ensure_admin_tables(mysqli $db): void
             category_id INT UNSIGNED NULL,
             name VARCHAR(180) NOT NULL,
             sku VARCHAR(80) NOT NULL UNIQUE,
+            image_path VARCHAR(255) DEFAULT '',
             description TEXT,
             price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
             stock_qty INT NOT NULL DEFAULT 0,
@@ -99,6 +100,14 @@ function ensure_admin_tables(mysqli $db): void
 
     foreach ($queries as $query) {
         $db->query($query);
+    }
+
+    $columnCheck = $db->query("SHOW COLUMNS FROM products LIKE 'image_path'");
+    if ($columnCheck instanceof mysqli_result && $columnCheck->num_rows === 0) {
+        $db->query("ALTER TABLE products ADD COLUMN image_path VARCHAR(255) DEFAULT '' AFTER sku");
+    }
+    if ($columnCheck instanceof mysqli_result) {
+        $columnCheck->free();
     }
 
     $seedCategory = $db->query('SELECT id FROM categories LIMIT 1');

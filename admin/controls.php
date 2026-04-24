@@ -6,6 +6,47 @@ require_once __DIR__ . '/common.php';
 $db = get_db_connection();
 ensure_admin_tables($db);
 
+function handle_product_image_upload(string $fieldName, ?string $currentPath = null): ?string
+{
+    if (!isset($_FILES[$fieldName]) || !is_array($_FILES[$fieldName])) {
+        return $currentPath;
+    }
+
+    $file = $_FILES[$fieldName];
+    $error = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($error === UPLOAD_ERR_NO_FILE) {
+        return $currentPath;
+    }
+    if ($error !== UPLOAD_ERR_OK) {
+        return $currentPath;
+    }
+
+    $tmpName = (string) ($file['tmp_name'] ?? '');
+    if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+        return $currentPath;
+    }
+
+    $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    $originalName = (string) ($file['name'] ?? '');
+    $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    if (!in_array($ext, $allowed, true)) {
+        return $currentPath;
+    }
+
+    $uploadDir = __DIR__ . '/../uploads/products';
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0777, true);
+    }
+
+    $newName = 'product_' . time() . '_' . uniqid('', true) . '.' . $ext;
+    $destination = $uploadDir . '/' . $newName;
+    if (!move_uploaded_file($tmpName, $destination)) {
+        return $currentPath;
+    }
+
+    return 'uploads/products/' . $newName;
+}
+
 $section = (string) ($_GET['section'] ?? 'products');
 $allowedSections = ['products', 'categories', 'users', 'orders', 'stock', 'coupons'];
 if (!in_array($section, $allowedSections, true)) {
@@ -69,17 +110,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $stock = (int) ($_POST['stock_qty'] ?? 0);
             $description = trim((string) ($_POST['description'] ?? ''));
             $isActive = isset($_POST['is_active']) ? 1 : 0;
+            $imagePath = handle_product_image_upload('image_file', '');
 
             if ($name === '' || $sku === '') {
                 admin_flash_set('Product name and SKU are required.', 'error');
             } else {
                 $cat = $categoryId > 0 ? $categoryId : null;
                 $stmt = $db->prepare(
-                    'INSERT INTO products (category_id, name, sku, description, price, stock_qty, is_active)
-                     VALUES (?, ?, ?, ?, ?, ?, ?)'
+                    'INSERT INTO products (category_id, name, sku, image_path, description, price, stock_qty, is_active)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
                 );
                 if ($stmt) {
-                    $stmt->bind_param('isssdii', $cat, $name, $sku, $description, $price, $stock, $isActive);
+                    $stmt->bind_param('issssdii', $cat, $name, $sku, $imagePath, $description, $price, $stock, $isActive);
                     $ok = $stmt->execute();
                     $stmt->close();
                     admin_flash_set($ok ? 'Product added.' : 'Could not add product (SKU must be unique).', $ok ? 'success' : 'error');
@@ -94,16 +136,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $stock = (int) ($_POST['stock_qty'] ?? 0);
             $description = trim((string) ($_POST['description'] ?? ''));
             $isActive = isset($_POST['is_active']) ? 1 : 0;
+            $currentImage = trim((string) ($_POST['current_image_path'] ?? ''));
+            $imagePath = handle_product_image_upload('image_file', $currentImage);
 
             if ($id > 0 && $name !== '' && $sku !== '') {
                 $cat = $categoryId > 0 ? $categoryId : null;
                 $stmt = $db->prepare(
                     'UPDATE products
-                     SET category_id = ?, name = ?, sku = ?, description = ?, price = ?, stock_qty = ?, is_active = ?
+                     SET category_id = ?, name = ?, sku = ?, image_path = ?, description = ?, price = ?, stock_qty = ?, is_active = ?
                      WHERE id = ?'
                 );
                 if ($stmt) {
-                    $stmt->bind_param('isssdiii', $cat, $name, $sku, $description, $price, $stock, $isActive, $id);
+                    $stmt->bind_param('issssdiii', $cat, $name, $sku, $imagePath, $description, $price, $stock, $isActive, $id);
                     $ok = $stmt->execute();
                     $stmt->close();
                     admin_flash_set($ok ? 'Product updated.' : 'Could not update product.', $ok ? 'success' : 'error');
@@ -266,7 +310,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 $flash = admin_flash_get();
 $categories = $db->query('SELECT id, name, slug, is_active, created_at FROM categories ORDER BY id DESC');
 $products = $db->query(
-    'SELECT p.id, p.name, p.sku, p.price, p.stock_qty, p.is_active, p.description, p.created_at, p.category_id, c.name AS category_name
+    'SELECT p.id, p.name, p.sku, p.image_path, p.price, p.stock_qty, p.is_active, p.description, p.created_at, p.category_id, c.name AS category_name
      FROM products p
      LEFT JOIN categories c ON c.id = p.category_id
      ORDER BY p.id DESC'
@@ -382,7 +426,7 @@ $coupons = $db->query('SELECT id, code, discount_type, discount_value, start_dat
     <?php if ($section === 'products'): ?>
       <div class="panel">
         <h3>Add/Edit/Delete Products</h3>
-        <form method="post" action="controls.php?section=products">
+        <form method="post" action="controls.php?section=products" enctype="multipart/form-data">
           <input type="hidden" name="action" value="create_product">
           <div class="grid-4">
             <div><input type="text" name="name" placeholder="Product name" required></div>
@@ -397,6 +441,7 @@ $coupons = $db->query('SELECT id, code, discount_type, discount_value, start_dat
             </div>
             <div><input type="number" step="0.01" name="price" placeholder="Price" required></div>
             <div><input type="number" name="stock_qty" placeholder="Stock" value="0" required></div>
+            <div><input type="file" name="image_file" accept=".jpg,.jpeg,.png,.gif,.webp"></div>
             <div><label><input type="checkbox" name="is_active" checked> Active</label></div>
           </div>
           <div class="mt"><textarea name="description" placeholder="Description"></textarea></div>
@@ -411,9 +456,10 @@ $coupons = $db->query('SELECT id, code, discount_type, discount_value, start_dat
               <tr>
                 <td><?php echo (int) $row['id']; ?></td>
                 <td colspan="6">
-                  <form method="post" action="controls.php?section=products">
+                  <form method="post" action="controls.php?section=products" enctype="multipart/form-data">
                     <input type="hidden" name="action" value="update_product">
                     <input type="hidden" name="id" value="<?php echo (int) $row['id']; ?>">
+                    <input type="hidden" name="current_image_path" value="<?php echo admin_h((string) $row['image_path']); ?>">
                     <div class="grid-4">
                       <div><input type="text" name="name" value="<?php echo admin_h((string) $row['name']); ?>" required></div>
                       <div><input type="text" name="sku" value="<?php echo admin_h((string) $row['sku']); ?>" required></div>
@@ -429,8 +475,14 @@ $coupons = $db->query('SELECT id, code, discount_type, discount_value, start_dat
                       </div>
                       <div><input type="number" step="0.01" name="price" value="<?php echo admin_h((string) $row['price']); ?>" required></div>
                       <div><input type="number" name="stock_qty" value="<?php echo (int) $row['stock_qty']; ?>" required></div>
+                      <div><input type="file" name="image_file" accept=".jpg,.jpeg,.png,.gif,.webp"></div>
                       <div><label><input type="checkbox" name="is_active" <?php echo (int) $row['is_active'] === 1 ? 'checked' : ''; ?>> Active</label></div>
                     </div>
+                    <?php if ((string) $row['image_path'] !== ''): ?>
+                      <div class="mt">
+                        <img src="../<?php echo admin_h((string) $row['image_path']); ?>" alt="product" style="max-height:80px;border:1px solid #ddd;padding:2px;">
+                      </div>
+                    <?php endif; ?>
                     <div class="mt"><textarea name="description"><?php echo admin_h((string) $row['description']); ?></textarea></div>
                     <div class="mt"><button class="btn btn-muted" type="submit">Update</button></div>
                   </form>

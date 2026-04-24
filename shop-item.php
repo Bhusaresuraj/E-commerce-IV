@@ -1,3 +1,57 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__ . '/db.php';
+
+function fe_h(string $value): string
+{
+    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+}
+
+$db = get_db_connection();
+$productId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+$selectedProduct = null;
+
+if ($productId > 0) {
+    $stmt = $db->prepare(
+        "SELECT p.id, p.name, p.image_path, p.description, p.price, p.stock_qty
+         FROM products p
+         WHERE p.id = ? AND p.is_active = 1
+         LIMIT 1"
+    );
+    if (!$stmt) {
+        $stmt = $db->prepare(
+            "SELECT p.id, p.name, '' AS image_path, p.description, p.price, p.stock_qty
+             FROM products p
+             WHERE p.id = ? AND p.is_active = 1
+             LIMIT 1"
+        );
+    }
+    if ($stmt) {
+        $stmt->bind_param('i', $productId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $selectedProduct = $result ? $result->fetch_assoc() : null;
+        $stmt->close();
+    }
+}
+
+if (!$selectedProduct) {
+    $fallback = $db->query("SELECT id, name, image_path, description, price, stock_qty FROM products WHERE is_active = 1 ORDER BY id DESC LIMIT 1");
+    if ($fallback === false) {
+        $fallback = $db->query("SELECT id, name, '' AS image_path, description, price, stock_qty FROM products WHERE is_active = 1 ORDER BY id DESC LIMIT 1");
+    }
+    if ($fallback instanceof mysqli_result) {
+        $selectedProduct = $fallback->fetch_assoc();
+        $fallback->free();
+    }
+}
+
+$productName = $selectedProduct ? (string) $selectedProduct['name'] : 'Cool green dress with red bell';
+$productPrice = $selectedProduct ? (float) $selectedProduct['price'] : 47.00;
+$productStock = $selectedProduct ? (int) $selectedProduct['stock_qty'] : 10;
+$productDesc = $selectedProduct ? trim((string) $selectedProduct['description']) : '';
+$productImg = ($selectedProduct && trim((string) $selectedProduct['image_path']) !== '') ? (string) $selectedProduct['image_path'] : 'assets/pages/img/products/model7.jpg';
+?>
 <!DOCTYPE html>
 <!--
 Template: Metronic Frontend Freebie - Responsive HTML Template Based On Twitter Bootstrap 3.3.4
@@ -422,7 +476,7 @@ Purchase Premium Metronic Admin Theme: http://themeforest.net/item/metronic-resp
         <ul class="breadcrumb">
             <li><a href="shop-index.php">Home</a></li>
             <li><a href="">Store</a></li>
-            <li class="active">Cool green dress with red bell</li>
+            <li class="active"><?php echo fe_h($productName); ?></li>
         </ul>
         <!-- BEGIN SIDEBAR & CONTENT -->
         <div class="row margin-bottom-40">
@@ -498,7 +552,7 @@ Purchase Premium Metronic Admin Theme: http://themeforest.net/item/metronic-resp
               <div class="row">
                 <div class="col-md-6 col-sm-6">
                   <div class="product-main-image">
-                    <img src="assets/pages/img/products/model7.jpg" alt="Cool green dress with red bell" class="img-responsive" data-BigImgsrc="assets/pages/img/products/model7.jpg">
+                    <img src="<?php echo fe_h($productImg); ?>" alt="<?php echo fe_h($productName); ?>" class="img-responsive" data-BigImgsrc="<?php echo fe_h($productImg); ?>">
                   </div>
                   <div class="product-other-images">
                     <a href="assets/pages/img/products/model3.jpg" class="fancybox-button" rel="photos-lib"><img alt="Berry Lace Dress" src="assets/pages/img/products/model3.jpg"></a>
@@ -507,19 +561,18 @@ Purchase Premium Metronic Admin Theme: http://themeforest.net/item/metronic-resp
                   </div>
                 </div>
                 <div class="col-md-6 col-sm-6">
-                  <h1>Cool green dress with red bell</h1>
+                  <h1><?php echo fe_h($productName); ?></h1>
                   <div class="price-availability-block clearfix">
                     <div class="price">
-                      <strong><span>$</span>47.00</strong>
+                      <strong><span>$</span><?php echo number_format($productPrice, 2); ?></strong>
                       <em>$<span>62.00</span></em>
                     </div>
                     <div class="availability">
-                      Availability: <strong>In Stock</strong>
+                      Availability: <strong><?php echo $productStock > 0 ? 'In Stock' : 'Out of Stock'; ?></strong>
                     </div>
                   </div>
                   <div class="description">
-                    <p>Lorem ipsum dolor ut sit ame dolore  adipiscing elit, sed nonumy nibh sed euismod laoreet dolore magna aliquarm erat volutpat 
-Nostrud duis molestie at dolore.</p>
+                    <p><?php echo fe_h($productDesc !== '' ? $productDesc : 'No description added yet.'); ?></p>
                   </div>
                   <div class="product-page-options">
                     <div class="pull-left">

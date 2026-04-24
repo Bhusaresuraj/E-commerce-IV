@@ -1,3 +1,37 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__ . '/db.php';
+
+function fe_h(string $value): string
+{
+    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+}
+
+$db = get_db_connection();
+$catalogProducts = [];
+$catalogResult = $db->query(
+    "SELECT p.id, p.name, p.image_path, p.price, p.stock_qty, c.name AS category_name
+     FROM products p
+     LEFT JOIN categories c ON c.id = p.category_id
+     WHERE p.is_active = 1
+     ORDER BY p.id DESC"
+);
+if ($catalogResult === false) {
+    $catalogResult = $db->query(
+        "SELECT p.id, p.name, '' AS image_path, p.price, p.stock_qty, c.name AS category_name
+         FROM products p
+         LEFT JOIN categories c ON c.id = p.category_id
+         WHERE p.is_active = 1
+         ORDER BY p.id DESC"
+    );
+}
+if ($catalogResult instanceof mysqli_result) {
+    while ($row = $catalogResult->fetch_assoc()) {
+        $catalogProducts[] = $row;
+    }
+    $catalogResult->free();
+}
+?>
 <!DOCTYPE html>
 <!--
 Template: Metronic Frontend Freebie - Responsive HTML Template Based On Twitter Bootstrap 3.3.4
@@ -548,6 +582,28 @@ Purchase Premium Metronic Admin Theme: http://themeforest.net/item/metronic-resp
                 </div>
               </div>
             </div>
+            <?php if ($catalogProducts !== []): ?>
+              <div class="row product-list">
+                <?php foreach ($catalogProducts as $product): ?>
+                  <?php $img = trim((string) ($product['image_path'] ?? '')) !== '' ? (string) $product['image_path'] : 'assets/pages/img/products/model1.jpg'; ?>
+                  <div class="col-md-4 col-sm-6 col-xs-12">
+                    <div class="product-item">
+                      <div class="pi-img-wrapper">
+                        <img src="<?php echo fe_h($img); ?>" class="img-responsive" alt="<?php echo fe_h((string) $product['name']); ?>">
+                        <div>
+                          <a href="<?php echo fe_h($img); ?>" class="btn btn-default fancybox-button">Zoom</a>
+                          <a href="shop-item.php?id=<?php echo (int) $product['id']; ?>" class="btn btn-default">View</a>
+                        </div>
+                      </div>
+                      <h3><a href="shop-item.php?id=<?php echo (int) $product['id']; ?>"><?php echo fe_h((string) $product['name']); ?></a></h3>
+                      <div class="pi-price">$<?php echo number_format((float) $product['price'], 2); ?></div>
+                      <p class="text-muted"><?php echo fe_h((string) ($product['category_name'] ?? '')); ?> | Stock: <?php echo (int) $product['stock_qty']; ?></p>
+                      <a href="shop-item.php?id=<?php echo (int) $product['id']; ?>" class="btn btn-default">Details</a>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+            <?php endif; ?>
             <!-- BEGIN PRODUCT LIST -->
             <div class="row product-list">
               <!-- PRODUCT ITEM START -->
